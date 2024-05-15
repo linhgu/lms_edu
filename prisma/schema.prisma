@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  //tạo chỉ mục,tìm kiếm toàn văn bản -> cải thiện hiệu suất tìm kiếm.
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+enum Role {
+  admin
+  member
+}
+
+model Profile {
+  id        String     @id @default(uuid())
+  userId    String?    @unique
+  email     String
+  username  String
+  role      Role       @default(member)
+  imageUrl  String
+  // courseId     String
+  courses   Course[]
+  purchases Purchase[]
+  comment   Comment[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // @@index([courseId])
+  @@fulltext([username])
+}
+
+model Course {
+  id          String       @id @default(uuid())
+  title       String       @db.Text
+  description String?      @db.Text
+  imageUrl    String?      @db.Text
+  price       Float?
+  isPublished Boolean      @default(false)
+  categoryId  String?
+  category    Category?    @relation(fields: [categoryId], references: [id])
+  profileId   String
+  profile     Profile?     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+  chapters    Chapter[]
+  purchases   Purchase[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([categoryId])
+  @@index([profileId])
+  @@fulltext([title])
+}
+
+model Category {
+  id      String   @id @default(uuid())
+  name    String   @unique
+  courses Course[]
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  name      String
+  url       String   @db.Text
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+model Chapter {
+  id           String         @id @default(uuid())
+  title        String
+  description  String?        @db.Text
+  videoUrl     String?        @db.Text
+  position     Int
+  isPublished  Boolean        @default(false)
+  isFree       Boolean        @default(false)
+  courseId     String
+  course       Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userProgress UserProgress[]
+  comment      Comment[]
+  question     Question[]
+  LockChapter  LockChapter[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([courseId])
+}
+
+model LockChapter {
+  id        String  @id
+  isLocked  Boolean @default(true)
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([chapterId])
+}
+
+model UserProgress {
+  id          String   @id @default(uuid())
+  profileId   String
+  chapterId   String
+  chapter     Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([profileId, chapterId])
+  @@index([chapterId])
+}
+
+model Purchase {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([profileId, courseId])
+  @@index([courseId])
+}
+
+model StripeCustomer {
+  id               String   @id @default(uuid())
+  profileId        String   @unique
+  stripeCustomerId String   @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  chapterId String
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  deleted   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([chapterId])
+}
+
+model Question {
+  id        String   @id @default(uuid())
+  question  String   @db.Text
+  option_a  String   @db.Text
+  option_b  String   @db.Text
+  option_c  String   @db.Text
+  option_d  String   @db.Text
+  answer    String
+  chapterId String
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  profileId String
+  courseId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([chapterId])
+}
